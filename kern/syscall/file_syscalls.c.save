@@ -37,33 +37,32 @@ sys_open(const_userptr_t upath, int flags, mode_t mode, int *retval)
 	 *
 	 * Check the design document design/filesyscall.txt for the steps
 	 */
-	kpath = (char *) kmalloc(sizeof(char *)*PATH_MAX);
+	kpath = (char *) kmalloc(__PATH_MAX);
 	if (kpath == NULL)
 	{
-		//kprintf("\nkpath error\n");
-		*retval = -1;
+		kprintf("\nkpath error\n");
 		return ENOMEM;
 	}
 	//kprintf("\nkpath init\n");
 	if (upath == NULL)
 	{
-		//kprintf("upath error\n");
+		kprintf("upath error\n");
 		kfree(kpath);
 		*retval = -1;
 		return EFAULT;
 	}
-	if (flags > allflags)
+	if (flags > allflags || flags < 0)
 	{
-		//kprintf("flags error\n");
+		kprintf("flags error\n");
 		kfree(kpath);
 		*retval = -1;
 		return EINVAL;
 	}
-	result = copyinstr(upath, kpath, PATH_MAX, NULL);
+	result = copyinstr(upath, kpath, __PATH_MAX, NULL);
 	//kprintf("copyinstr done.\n");
 	if (result)
 	{
-		//kprintf("copy instr error\n");
+		kprintf("copy instr error\n");
 		kfree(kpath);
 		*retval = -1;
 		return result;
@@ -73,7 +72,7 @@ sys_open(const_userptr_t upath, int flags, mode_t mode, int *retval)
 	//kprintf("openfile done.\n");
 	if (result)
 	{
-		//kprintf("openfile error\n");
+		kprintf("openfile error\n");
 		kfree(kpath);
 		*retval = -1;
 		return result;
@@ -81,7 +80,7 @@ sys_open(const_userptr_t upath, int flags, mode_t mode, int *retval)
 	result = filetable_place(curproc->p_filetable, file, retval);
 	if (result)
 	{
-		//kprintf("filetable error\n");
+		kprintf("filetable error\n");
 		kfree(kpath);
 		*retval = -1;
 		return result;
@@ -89,7 +88,7 @@ sys_open(const_userptr_t upath, int flags, mode_t mode, int *retval)
 	//kprintf("All done here\n");
 	kfree(kpath);
 	kprintf("\nsys_open\n");
-	return 0;
+	return *retval;
 	//(void) upath; // suppress compilation warning until code gets written
 	//(void) flags; // suppress compilation warning until code gets written
 	//(void) mode; // suppress compilation warning until code gets written
@@ -130,7 +129,7 @@ sys_read(int fd, userptr_t buf, size_t size, int *retval)
 	{
 		lock_release(file->of_offsetlock);
 		*retval = -1;
-		return EACCES;
+		return EBADF;
 	}
 	
 	uio_kinit(&iv, &uo, buf, size, file->of_offset, UIO_READ);
@@ -146,7 +145,6 @@ sys_read(int fd, userptr_t buf, size_t size, int *retval)
 	
 	file->of_offset = uo.uio_offset;
 	lock_release(file->of_offsetlock);
-	filetable_put(curproc->p_filetable, fd, file);
 	*retval = result;
 	kprintf("\nsys_read\n");
 	return size-uo.uio_resid;
@@ -171,8 +169,10 @@ int sys_write(int fd, userptr_t buf, size_t size, int *retval)
 	
 	int result = 0;
 	struct openfile *file;
-	struct iovec iv;
-	struct uio uo;
+	struct iovec &iv;
+	struct uio &uo;
+	iv = (struct iv*)kmalloc(sizeof(struct iv*));
+	uo = (struct uio*)kmalloc(sizeof(struct uio*));
 	//kprintf("in sys_write\n");
 	if (buf == NULL)
 	{
@@ -193,8 +193,8 @@ int sys_write(int fd, userptr_t buf, size_t size, int *retval)
 	
 	if (file->of_accmode == O_RDONLY)
 	{
-		//lock_release(file->of_offsetlock);
-		return EACCES;
+		lock_release(file->of_offsetlock);
+		return EBADF;
 	}
 
 	uio_kinit(&iv, &uo, buf, size, file->of_offset, UIO_WRITE);
@@ -207,13 +207,13 @@ int sys_write(int fd, userptr_t buf, size_t size, int *retval)
 	result = VOP_WRITE(file->of_vnode, &uo);
 	if (result)	
 	{
-		//lock_release(file->of_offsetlock);
+		lock_release(file->of_offsetlock);
 		return result;
 	}
 	//kprintf("VOP_WRITE successful\n");
 	file->of_offset = uo.uio_offset;
 	lock_release(file->of_offsetlock);
-	filetable_put(curproc->p_filetable, fd, file);
+
 	*retval = result;
 	kprintf("\nsys_write\n");
 	return size - uo.uio_resid;
@@ -226,7 +226,8 @@ int sys_close(int fd)
 	int result = 0;
 	struct openfile *file;
 	
-	if(!filetable_okfd(curproc->p_filetable, fd))
+	result = filetable_okfd(curproc->p_filetable, fd);
+	if (result)
 	{
 		return EBADF;
 	}
