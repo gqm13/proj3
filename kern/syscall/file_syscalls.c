@@ -147,10 +147,9 @@ sys_read(int fd, userptr_t buf, size_t size, int *retval)
 	file->of_offset = uo.uio_offset;
 	lock_release(file->of_offsetlock);
 	filetable_put(curproc->p_filetable, fd, file);
-	*retval = result;
+	*retval = 0;
 	//kprintf("\nsys_read\n");
-	return size-uo.uio_resid;
-
+	return 0;
        /* 
         * Your implementation of system call read starts here.  
         *
@@ -214,9 +213,9 @@ int sys_write(int fd, userptr_t buf, size_t size, int *retval)
 	file->of_offset = uo.uio_offset;
 	lock_release(file->of_offsetlock);
 	filetable_put(curproc->p_filetable, fd, file);
-	*retval = result;
+	*retval = 0;
 	//kprintf("\nsys_write\n");
-	return size - uo.uio_resid;
+	return 0;
 }
 
 /* close() - remove from the file table.
@@ -225,7 +224,7 @@ int sys_close(int fd)
 {
 	int result = 0;
 	struct openfile *file;
-	
+	//kprintf("in sys_close\n");
 	if(!filetable_okfd(curproc->p_filetable, fd))
 	{
 		return EBADF;
@@ -233,12 +232,15 @@ int sys_close(int fd)
 	//kprintf("fd number validated.\n");
 	filetable_placeat(curproc->p_filetable, NULL, fd, &file);
 	//kprintf("filetable_placeat replacing file table entry with NULL\n");
-	result = filetable_get(curproc->p_filetable, --fd, NULL);
-	if (result)
+	if(curproc->p_filetable->ft_openfiles[fd-1] == NULL)
 	{
 		return EBADF;
 	}
-	//kprintf("filetable get successful\n");
+	if (file == NULL)
+	{
+		return ENOENT;
+	}
+	//kprintf("last file wasn't NULL\n");
 	openfile_decref(file);
 	//(void) fd;
 	//kprintf("\nsys_close\n");
