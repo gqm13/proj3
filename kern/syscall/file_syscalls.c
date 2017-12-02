@@ -88,7 +88,7 @@ sys_open(const_userptr_t upath, int flags, mode_t mode, int *retval)
 	}
 	//kprintf("All done here\n");
 	kfree(kpath);
-	kprintf("\nsys_open\n");
+	//kprintf("\nsys_open\n");
 	return 0;
 	//(void) upath; // suppress compilation warning until code gets written
 	//(void) flags; // suppress compilation warning until code gets written
@@ -148,7 +148,7 @@ sys_read(int fd, userptr_t buf, size_t size, int *retval)
 	lock_release(file->of_offsetlock);
 	filetable_put(curproc->p_filetable, fd, file);
 	*retval = result;
-	kprintf("\nsys_read\n");
+	//kprintf("\nsys_read\n");
 	return size-uo.uio_resid;
 
        /* 
@@ -215,7 +215,7 @@ int sys_write(int fd, userptr_t buf, size_t size, int *retval)
 	lock_release(file->of_offsetlock);
 	filetable_put(curproc->p_filetable, fd, file);
 	*retval = result;
-	kprintf("\nsys_write\n");
+	//kprintf("\nsys_write\n");
 	return size - uo.uio_resid;
 }
 
@@ -241,7 +241,7 @@ int sys_close(int fd)
 	//kprintf("filetable get successful\n");
 	openfile_decref(file);
 	//(void) fd;
-	kprintf("\nsys_close\n");
+	//kprintf("\nsys_close\n");
 	return result;
 }
 /*
