@@ -66,4 +66,6 @@ int sys_read(int fd, userptr_t buf, size_t size, int *retval);
 /* You need to add more for sys_meld, sys_write, and sys_close */
 int sys_write(int fd, userptr_t buf, size_t size, int *retval);
 int sys_close(int fd);
+int sys_meld(const_userptr_t pn1, const_userptr_t pn2, const_userptr_t pn3, int *retval);
+
 #endif /* _SYSCALL_H_ */
